@@ -1,3 +1,2 @@
-# Kerno's Java  Challenge
-
+# Java - Quarkus - Kafka
 
