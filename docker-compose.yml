@@ -1,0 +1,67 @@
+x-postgres-config: &env_postgres
+  POSTGRES_PASSWORD: C7SQKr@g6SwtXNi
+
+x-env-kafka: &env_kafka
+  KAFKA_BROKER_ID: 1
+  KAFKA_BROKER_ADDRESS: kafka:9092
+  KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+  KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+  KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,PLAINTEXT_HOST://:29092
+  KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://:9092,PLAINTEXT_HOST://localhost:29092
+  KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+  KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+  ALLOW_PLAINTEXT_LISTENER: "yes"
+
+x-env-zookeeper: &env_zookeeper
+  ALLOW_ANONYMOUS_LOGIN: 'yes'
+
+services:
+  challenge:
+    image: challenge/gabriel:latest
+    build:
+      context: ./
+      dockerfile: src/main/docker/Dockerfile.legacy-jar
+    hostname: challenge
+    container_name: challenge
+    mem_limit: 4096MB
+    ports: [ '8080:8080' ]
+    depends_on: [ kafka ]
+    environment:
+      <<: [ *env_postgres, *env_kafka ]
+
+  postgres:
+    image: bitnami/postgresql:14.6.0
+    hostname: postgres
+    container_name: postgres
+    restart: always
+    ports: [ '5432:5432' ]
+    environment:
+      <<: *env_postgres
+
+  kafka:
+    image: bitnami/kafka:3.3.1
+    container_name: kafka
+    hostname: kafka
+    restart: always
+    ports: [ '29092:29092' ]
+    environment:
+      <<: *env_kafka
+    depends_on:
+      - zookeeper
+
+  kafkasetup:
+    image: aambertin/kafka-cli:3.3.1
+    volumes:
+      - ./setup.sh:/setup.sh
+      - ./messages:/messages
+    entrypoint: sh -c "/setup.sh"
+    depends_on: [ challenge ]
+    environment:
+      <<: *env_kafka
+
+  zookeeper:
+    image: bitnami/zookeeper:3.8
+    container_name: zookeeper
+    ports: [ '2182:2181' ]
+    environment:
+      <<: *env_zookeeper
